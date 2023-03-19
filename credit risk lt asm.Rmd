@@ -1,0 +1,106 @@
+---
+title: "L&T credit analysis"
+output: html_document
+date: "2023-03-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readr)
+library(lubridate)
+df <- read_csv("D:/Credit risk/train.csv", col_types = cols(Date.of.Birth = col_date(format = "%d-%m-%y"), DisbursalDate = col_date(format = "%d-%m-%y")))
+
+```
+# 1. Cleaning data:
+```{r}
+colSums(is.na(df))
+dim(df)
+head(df)
+```
+Examining the time of the report
+```{r}
+min(df$DisbursalDate)
+max(df$DisbursalDate)
+```
+```{r}
+max(df$Date.of.Birth)
+```
+
+
+
+Based on disbursalDate column we can the time range for the data is from 2018-08-01 to 2018-10-31, we can calculate age of the borrowers as follow:
+```{r}
+df$age <- 2019 - year(df$Date.of.Birth)
+min(df$age)
+```
+
+We can see, minimum age is negative, we need to check for anomolies in date of birth columns
+```{r}
+filter(df, Date.of.Birth > as.Date("2001-01-01"))
+```
+Some observation have date of birth in the future, for now treat these observation as Na
+```{r}
+hist(df$age)
+hist(df.rm$age, main = paste("Histogram of" , "customer's age (removed negative values)"), xlab = "age")
+hist(abs(df$age), main = paste("Histogram of" , "customer's age (taking absolute values)"), xlab = "age")
+```
+
+```{r}
+
+df$age[df$age < 0] <- NA
+```
+
+```{r}
+df$AVERAGE.ACCT.AGE <- as.numeric(str_extract(df$AVERAGE.ACCT.AGE, "\\d+")) * 12 + as.numeric(str_extract(df$AVERAGE.ACCT.AGE, "\\d+(?=mon)"))
+df$CREDIT.HISTORY.LENGTH <- as.numeric(str_extract(df$CREDIT.HISTORY.LENGTH, "\\d+")) * 12 + as.numeric(str_extract(df$CREDIT.HISTORY.LENGTH, "\\d+(?=mon)"))
+```
+
+```{r}
+filter(df, AVERAGE.ACCT.AGE > 700)
+```
+
+```{r}
+df$PERFORM_CNS.SCORE.DESCRIPTION <- substr(df$PERFORM_CNS.SCORE.DESCRIPTION, 1, 1)
+performance_freq <- data.frame(table(df$PERFORM_CNS.SCORE.DESCRIPTION))
+```
+
+```{r}
+df$Employment.Type <- replace_na(df$Employment.Type, "Others")
+df.rm <- na.omit(df)
+dim(df.rm)
+```
+
+# 2. Feature egineering
+
+One hot encoding for employment type
+```{r}
+df.rm$emp_salaried <- ifelse(df.rm$Employment.Type == "Salaried", 1, 0)
+df.rm$emp_selfemployed <- ifelse(df.rm$Employment.Type == "Self employed", 1, 0)
+```
+remove irrelevant columns
+```{r}
+to_drop <- c("UniqueID", "branch_id", "supplier_id",  "Employee_code_ID", "State_ID", "Current_pincode_ID", "Employment.Type", "Date.of.Birth")
+
+df.rm <- df.rm[, !(colnames(df.rm) %in% to_drop)]
+```
+
+# 3. Exploratory data analysis:
+# 3.1 Checking target's distribution
+```{r}
+df.rm %>% group_by(loan_default) %>% summarize(count = n()) %>% ggplot(aes(x = loan_default, y = count)) + geom_col(color = c("red", "green"))
+```
+
+
+# 3.2 
+```{r}
+write_excel_csv(df.rm, "df_credit_clean2.csv")
+dim(df.rm)
+```
+
+
+
+
+
+
+
