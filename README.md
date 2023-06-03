@@ -1,1 +1,1 @@
-# LT-credit-
+# LT-credit analysis and prediction
